@@ -33,15 +33,18 @@ function BudgetPage() {
       const receipt = h["Receipt ID (Key)"];
       const sgdTotal = h["SGD Total Amount"] || 0;
       const items = data.itemsByReceipt[receipt];
-      if (items && items.length > 0) {
-        const itemSum = items.reduce((s, i) => s + (i["Item Total"] || 0), 0) || 1;
+      const itemSum = items ? items.reduce((s, i) => s + (i["Item Total"] || 0), 0) : 0;
+      if (items && items.length > 0 && itemSum > 0) {
         for (const it of items) {
           const share = ((it["Item Total"] || 0) / itemSum) * sgdTotal;
           const k = it["Category (Specific)"] || "Other";
           map.set(k, (map.get(k) || 0) + share);
         }
       } else {
-        const k = h["Category (Primary)"] || "Other";
+        // Fallback to receipt-level categorization when no items OR every item total is zero,
+        // so the full SGD amount stays attributed and Dashboard Spend = Σ Category Spend.
+        const specificFromItem = items && items.length > 0 ? items[0]["Category (Specific)"] : "";
+        const k = specificFromItem || h["Category (Primary)"] || "Other";
         map.set(k, (map.get(k) || 0) + sgdTotal);
       }
     }
