@@ -4,10 +4,12 @@ import { useMemo, useState } from "react";
 import { Search, ArrowLeftRight, CreditCard, HandCoins, ChevronDown } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { financeQueryOptions } from "@/lib/finance-query";
-import { fmtSGD, parseDate, monthKey, currentMonthKey, isExpense } from "@/lib/finance-utils";
+import { fmtSGD, parseDate, monthKey, isExpense } from "@/lib/finance-utils";
+import { PERIODS, usePeriod } from "@/lib/period";
 
 import { TransactionDrawer } from "@/components/TransactionDrawer";
 import type { HeaderRow } from "@/lib/api/finance.functions";
+
 
 export const Route = createFileRoute("/expenses")({
   head: () => ({ meta: [{ title: "Expenses — FinanceOS" }] }),
