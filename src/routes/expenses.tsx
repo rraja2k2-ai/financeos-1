@@ -4,10 +4,12 @@ import { useMemo, useState } from "react";
 import { Search, ArrowLeftRight, CreditCard, HandCoins, ChevronDown } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { financeQueryOptions } from "@/lib/finance-query";
-import { fmtSGD, parseDate, monthKey, currentMonthKey, isExpense } from "@/lib/finance-utils";
+import { fmtSGD, parseDate, monthKey, isExpense } from "@/lib/finance-utils";
+import { PERIODS, usePeriod } from "@/lib/period";
 
 import { TransactionDrawer } from "@/components/TransactionDrawer";
 import type { HeaderRow } from "@/lib/api/finance.functions";
+
 
 export const Route = createFileRoute("/expenses")({
   head: () => ({ meta: [{ title: "Expenses — FinanceOS" }] }),
@@ -17,7 +19,8 @@ export const Route = createFileRoute("/expenses")({
 
 function ExpensesPage() {
   const { data } = useSuspenseQuery(financeQueryOptions);
-  
+  const { period, setPeriod, range } = usePeriod();
+
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("All");
   const [selected, setSelected] = useState<HeaderRow | null>(null);
@@ -26,12 +29,17 @@ function ExpensesPage() {
   const [openCat, setOpenCat] = useState<string | null>(null);
 
   const bucketOf = (h: HeaderRow) => (h.Currency === "INR" ? "INR" : "SGD");
+  const inRange = (h: { Date: string }) => {
+    const d = parseDate(h.Date);
+    return d >= range.start && d <= range.end;
+  };
 
-  // Per-currency stats for the tab cards (respect search + category filters,
-  // but NOT the active bucket — tabs always show their own totals).
+  // Per-currency stats for the tab cards (respect search + category filters
+  // and the global analytics period).
   const baseFiltered = useMemo(() => {
     return data.headers
       .filter(isExpense)
+      .filter(inRange)
       .filter((h) => (cat === "All" ? true : h["Category (Primary)"] === cat))
       .filter((h) => {
         if (!q) return true;
@@ -42,7 +50,9 @@ function ExpensesPage() {
           (h.Comments || "").toLowerCase().includes(s)
         );
       });
-  }, [data.headers, q, cat]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.headers, q, cat, period]);
+
 
   const stats = useMemo(() => {
     const sgdList = baseFiltered.filter((h) => bucketOf(h) === "SGD");
@@ -102,6 +112,7 @@ function ExpensesPage() {
     for (const m of MOVEMENT_TYPES) out[m.key] = [];
     for (const h of data.headers) {
       if (bucketOf(h) !== bucket) continue;
+      if (!inRange(h)) continue;
       const t = h["Transaction Type"];
       if (out[t]) out[t].push(h);
     }
@@ -109,31 +120,27 @@ function ExpensesPage() {
       out[k].sort((a, b) => parseDate(b.Date).getTime() - parseDate(a.Date).getTime());
     }
     return out;
-  }, [data.headers, bucket]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.headers, bucket, period]);
 
-  // ---------- Spending analytics (current month, current bucket) ----------
-  const thisMonth = currentMonthKey();
+  // ---------- Spending analytics (active period, current bucket) ----------
 
-  // Master Expenses summary: current month, all currencies, SGD-converted.
-  // Mirrors Dashboard → This Month Spend, independent of the active bucket.
-  const masterMonth = useMemo(() => {
-    const list = data.headers.filter(
-      (h) => isExpense(h) && monthKey(parseDate(h.Date)) === thisMonth,
-    );
+  // Master Expenses summary: active period, all currencies, SGD-converted.
+  // Mirrors Dashboard → Period Spend, independent of the active bucket.
+  const masterPeriod = useMemo(() => {
+    const list = data.headers.filter((h) => isExpense(h) && inRange(h));
     return {
       count: list.length,
       totalSGD: list.reduce((s, h) => s + (h["SGD Total Amount"] || 0), 0),
     };
-  }, [data.headers, thisMonth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.headers, period]);
   const analytics = useMemo(() => {
-    const monthExpenses = data.headers.filter(
-      (h) =>
-        isExpense(h) &&
-        bucketOf(h) === bucket &&
-        monthKey(parseDate(h.Date)) === thisMonth,
+    const periodExpenses = data.headers.filter(
+      (h) => isExpense(h) && bucketOf(h) === bucket && inRange(h),
     );
     const primary = new Map<string, { total: number; receipts: HeaderRow[] }>();
-    for (const h of monthExpenses) {
+    for (const h of periodExpenses) {
       const k = h["Category (Primary)"] || "Other";
       const entry = primary.get(k) || { total: 0, receipts: [] };
       entry.total += amountOf(h);
@@ -144,9 +151,9 @@ function ExpensesPage() {
       .map(([name, v]) => ({ name, total: v.total, receipts: v.receipts }))
       .sort((a, b) => b.total - a.total);
     return rows;
-    // amountOf depends on isINR which derives from bucket, so deps are covered
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.headers, bucket, thisMonth]);
+  }, [data.headers, bucket, period]);
+
 
   const subBreakdown = (receipts: HeaderRow[]) => {
     const map = new Map<string, number>();
@@ -169,9 +176,30 @@ function ExpensesPage() {
   };
 
   return (
-    <AppShell title="Expenses" subtitle={`${masterMonth.count} transactions · ${fmtSGD(masterMonth.totalSGD)}`}>
+    <AppShell title="Expenses" subtitle={`${range.label} · ${masterPeriod.count} transactions · ${fmtSGD(masterPeriod.totalSGD)}`}>
+      {/* Period selector */}
+      <div className="mb-3 flex flex-wrap gap-2">
+        {PERIODS.map((p) => {
+          const active = period === p.key;
+          return (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => setPeriod(p.key)}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                active
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent/40"
+              }`}
+            >
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
       {/* Currency tab cards */}
       <div className="grid grid-cols-2 gap-3 mb-3">
+
         {(["SGD", "INR"] as const).map((b) => {
           const active = bucket === b;
           const s = stats[b];
@@ -281,8 +309,9 @@ function ExpensesPage() {
             Spending Analytics
           </h2>
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-            {thisMonth} · {bucket}
+            {range.label} · {bucket}
           </span>
+
         </div>
         {analytics.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
