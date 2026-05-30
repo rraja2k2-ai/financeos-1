@@ -17,36 +17,9 @@ import { TransactionDrawer } from "@/components/TransactionDrawer";
 import { financeQueryOptions } from "@/lib/finance-query";
 import { fmtSGD, parseDate, monthKey, currentMonthKey, isExpense, isIncome, groupByMonth, budgetActiveInMonth } from "@/lib/finance-utils";
 import { usePrivacy } from "@/lib/privacy";
+import { PERIODS, usePeriod } from "@/lib/period";
 import type { HeaderRow } from "@/lib/api/finance.functions";
 
-type PeriodKey = "current" | "previous" | "last3" | "last6" | "ytd";
-const PERIODS: { key: PeriodKey; label: string }[] = [
-  { key: "current", label: "Current Month" },
-  { key: "previous", label: "Previous Month" },
-  { key: "last3", label: "Last 3 Months" },
-  { key: "last6", label: "Last 6 Months" },
-  { key: "ytd", label: "Year to Date" },
-];
-
-function periodRange(period: PeriodKey): { start: Date; end: Date; label: string } {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const startOfMonth = (yy: number, mm: number) => new Date(yy, mm, 1);
-  const endOfMonth = (yy: number, mm: number) => new Date(yy, mm + 1, 0, 23, 59, 59, 999);
-  switch (period) {
-    case "current":
-      return { start: startOfMonth(y, m), end: endOfMonth(y, m), label: "This month" };
-    case "previous":
-      return { start: startOfMonth(y, m - 1), end: endOfMonth(y, m - 1), label: "Last month" };
-    case "last3":
-      return { start: startOfMonth(y, m - 2), end: endOfMonth(y, m), label: "Last 3 months" };
-    case "last6":
-      return { start: startOfMonth(y, m - 5), end: endOfMonth(y, m), label: "Last 6 months" };
-    case "ytd":
-      return { start: startOfMonth(y, 0), end: endOfMonth(y, m), label: "Year to date" };
-  }
-}
 
 
 export const Route = createFileRoute("/")({
