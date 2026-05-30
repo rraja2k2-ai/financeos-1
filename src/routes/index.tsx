@@ -33,10 +33,10 @@ export const Route = createFileRoute("/")({
 function Dashboard() {
   const { data } = useSuspenseQuery(financeQueryOptions);
   const { mask } = usePrivacy();
-  const [period, setPeriod] = useState<PeriodKey>("current");
+  const { period, setPeriod, range } = usePeriod();
   const [selected, setSelected] = useState<HeaderRow | null>(null);
 
-  const range = useMemo(() => periodRange(period), [period]);
+
   const inRange = (h: { Date: string }) => {
     const d = parseDate(h.Date);
     return d >= range.start && d <= range.end;
