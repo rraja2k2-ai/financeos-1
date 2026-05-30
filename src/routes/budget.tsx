@@ -3,8 +3,9 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { AppShell } from "@/components/AppShell";
 import { financeQueryOptions } from "@/lib/finance-query";
-import { fmtSGD, parseDate, monthKey, currentMonthKey, isExpense, budgetActiveInMonth } from "@/lib/finance-utils";
+import { fmtSGD, parseDate, monthKey, isExpense, budgetActiveInMonth } from "@/lib/finance-utils";
 import { usePrivacy } from "@/lib/privacy";
+import { PERIODS, usePeriod, monthsInRange } from "@/lib/period";
 
 export const Route = createFileRoute("/budget")({
   head: () => ({ meta: [{ title: "Budget — FinanceOS" }] }),
@@ -15,16 +16,20 @@ export const Route = createFileRoute("/budget")({
 function BudgetPage() {
   const { data } = useSuspenseQuery(financeQueryOptions);
   const { mask } = usePrivacy();
-  const month = currentMonthKey();
-  const monthIndex = new Date().getMonth();
+  const { period, setPeriod, range } = usePeriod();
 
-  // Spend by specific category this month (via items.Category Specific aggregated to receipts via SGD share)
-  // Simpler: use headers grouped by primary, then itemise by specific within receipts.
+  const monthsCovered = useMemo(() => monthsInRange(range), [range]);
+  const monthKeysCovered = useMemo(
+    () => new Set(monthsCovered.map(({ year, monthIndex }) => `${year}-${String(monthIndex + 1).padStart(2, "0")}`)),
+    [monthsCovered],
+  );
+
+  // Spend by specific category across the active period (item-level SGD share).
   const spentBySpecific = useMemo(() => {
     const map = new Map<string, number>();
     for (const h of data.headers) {
       if (!isExpense(h)) continue;
-      if (monthKey(parseDate(h.Date)) !== month) continue;
+      if (!monthKeysCovered.has(monthKey(parseDate(h.Date)))) continue;
       const receipt = h["Receipt ID (Key)"];
       const sgdTotal = h["SGD Total Amount"] || 0;
       const items = data.itemsByReceipt[receipt];
@@ -41,19 +46,26 @@ function BudgetPage() {
       }
     }
     return map;
-  }, [data, month]);
+  }, [data, monthKeysCovered]);
 
-  // Group budget rows by primary. Only include rows whose frequency/pattern
-  // means they apply this month (Monthly always; Quarterly/Yearly/BiMonthly
-  // restricted to their pattern).
+  // For each budget entry, sum its budgeted amount across every month in the
+  // active period where the entry is active per frequency/pattern logic.
+  // Entries that aren't active in ANY covered month are omitted.
   const grouped = useMemo(() => {
-    const g = new Map<string, { specific: string; budget: number; spent: number; frequency?: string; pattern?: string }[]>();
+    const g = new Map<
+      string,
+      { specific: string; budget: number; spent: number; frequency?: string; pattern?: string }[]
+    >();
     for (const [specific, entry] of Object.entries(data.budgetMap)) {
-      if (!budgetActiveInMonth(entry, monthIndex)) continue;
+      let activeMonths = 0;
+      for (const { monthIndex } of monthsCovered) {
+        if (budgetActiveInMonth(entry, monthIndex)) activeMonths += 1;
+      }
+      if (activeMonths === 0) continue;
       const arr = g.get(entry.primary) || [];
       arr.push({
         specific,
-        budget: entry.budget || 0,
+        budget: (entry.budget || 0) * activeMonths,
         spent: spentBySpecific.get(specific) || 0,
         frequency: entry.frequency,
         pattern: entry.pattern,
@@ -61,14 +73,35 @@ function BudgetPage() {
       g.set(entry.primary, arr);
     }
     return Array.from(g.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [data.budgetMap, spentBySpecific, monthIndex]);
+  }, [data.budgetMap, spentBySpecific, monthsCovered]);
 
   const totalBudget = grouped.reduce((s, [, rows]) => s + rows.reduce((x, r) => x + r.budget, 0), 0);
   const totalSpent = grouped.reduce((s, [, rows]) => s + rows.reduce((x, r) => x + r.spent, 0), 0);
   const pct = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
   return (
-    <AppShell title="Budget" subtitle={`${month} · ${mask(fmtSGD(totalSpent))} of ${mask(fmtSGD(totalBudget))}`}>
+    <AppShell title="Budget" subtitle={`${range.label} · ${mask(fmtSGD(totalSpent))} of ${mask(fmtSGD(totalBudget))}`}>
+      {/* Period selector */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {PERIODS.map((p) => {
+          const active = period === p.key;
+          return (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => setPeriod(p.key)}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                active
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent/40"
+              }`}
+            >
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="rounded-2xl bg-[image:var(--gradient-primary)] p-5 text-primary-foreground shadow-[var(--shadow-elevated)]">
         <div className="flex items-baseline justify-between">
           <div className="text-xs uppercase tracking-wider opacity-80">Total budget used</div>
