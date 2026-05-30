@@ -9,6 +9,7 @@ import {
 
 import appCss from "../styles.css?url";
 import { PrivacyProvider } from "@/lib/privacy";
+import { PeriodProvider } from "@/lib/period";
 
 function NotFoundComponent() {
   return (
