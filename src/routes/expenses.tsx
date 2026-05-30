@@ -176,9 +176,30 @@ function ExpensesPage() {
   };
 
   return (
-    <AppShell title="Expenses" subtitle={`${masterMonth.count} transactions · ${fmtSGD(masterMonth.totalSGD)}`}>
+    <AppShell title="Expenses" subtitle={`${range.label} · ${masterPeriod.count} transactions · ${fmtSGD(masterPeriod.totalSGD)}`}>
+      {/* Period selector */}
+      <div className="mb-3 flex flex-wrap gap-2">
+        {PERIODS.map((p) => {
+          const active = period === p.key;
+          return (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => setPeriod(p.key)}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                active
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-accent/40"
+              }`}
+            >
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
       {/* Currency tab cards */}
       <div className="grid grid-cols-2 gap-3 mb-3">
+
         {(["SGD", "INR"] as const).map((b) => {
           const active = bucket === b;
           const s = stats[b];
