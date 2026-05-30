@@ -112,6 +112,7 @@ function ExpensesPage() {
     for (const m of MOVEMENT_TYPES) out[m.key] = [];
     for (const h of data.headers) {
       if (bucketOf(h) !== bucket) continue;
+      if (!inRange(h)) continue;
       const t = h["Transaction Type"];
       if (out[t]) out[t].push(h);
     }
@@ -119,31 +120,27 @@ function ExpensesPage() {
       out[k].sort((a, b) => parseDate(b.Date).getTime() - parseDate(a.Date).getTime());
     }
     return out;
-  }, [data.headers, bucket]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.headers, bucket, period]);
 
-  // ---------- Spending analytics (current month, current bucket) ----------
-  const thisMonth = currentMonthKey();
+  // ---------- Spending analytics (active period, current bucket) ----------
 
-  // Master Expenses summary: current month, all currencies, SGD-converted.
-  // Mirrors Dashboard → This Month Spend, independent of the active bucket.
-  const masterMonth = useMemo(() => {
-    const list = data.headers.filter(
-      (h) => isExpense(h) && monthKey(parseDate(h.Date)) === thisMonth,
-    );
+  // Master Expenses summary: active period, all currencies, SGD-converted.
+  // Mirrors Dashboard → Period Spend, independent of the active bucket.
+  const masterPeriod = useMemo(() => {
+    const list = data.headers.filter((h) => isExpense(h) && inRange(h));
     return {
       count: list.length,
       totalSGD: list.reduce((s, h) => s + (h["SGD Total Amount"] || 0), 0),
     };
-  }, [data.headers, thisMonth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.headers, period]);
   const analytics = useMemo(() => {
-    const monthExpenses = data.headers.filter(
-      (h) =>
-        isExpense(h) &&
-        bucketOf(h) === bucket &&
-        monthKey(parseDate(h.Date)) === thisMonth,
+    const periodExpenses = data.headers.filter(
+      (h) => isExpense(h) && bucketOf(h) === bucket && inRange(h),
     );
     const primary = new Map<string, { total: number; receipts: HeaderRow[] }>();
-    for (const h of monthExpenses) {
+    for (const h of periodExpenses) {
       const k = h["Category (Primary)"] || "Other";
       const entry = primary.get(k) || { total: 0, receipts: [] };
       entry.total += amountOf(h);
@@ -154,9 +151,9 @@ function ExpensesPage() {
       .map(([name, v]) => ({ name, total: v.total, receipts: v.receipts }))
       .sort((a, b) => b.total - a.total);
     return rows;
-    // amountOf depends on isINR which derives from bucket, so deps are covered
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.headers, bucket, thisMonth]);
+  }, [data.headers, bucket, period]);
+
 
   const subBreakdown = (receipts: HeaderRow[]) => {
     const map = new Map<string, number>();
