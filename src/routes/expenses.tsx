@@ -309,8 +309,9 @@ function ExpensesPage() {
             Spending Analytics
           </h2>
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-            {thisMonth} · {bucket}
+            {range.label} · {bucket}
           </span>
+
         </div>
         {analytics.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
