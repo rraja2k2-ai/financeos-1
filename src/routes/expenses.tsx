@@ -160,12 +160,14 @@ function ExpensesPage() {
     for (const h of receipts) {
       const items = data.itemsByReceipt?.[h["Receipt ID (Key)"]] ?? [];
       const amt = amountOf(h);
-      if (items.length === 0) {
-        const k = h["Category (Primary)"] || "Other";
+      const sum = items.reduce((s, i) => s + (i["Item Total"] || 0), 0);
+      if (items.length === 0 || sum <= 0) {
+        // Fallback to receipt-level categorization when no items OR every item total is zero.
+        const specificFromItem = items.length > 0 ? items[0]["Category (Specific)"] : "";
+        const k = specificFromItem || h["Category (Primary)"] || "Other";
         map.set(k, (map.get(k) || 0) + amt);
         continue;
       }
-      const sum = items.reduce((s, i) => s + (i["Item Total"] || 0), 0) || 1;
       for (const it of items) {
         const k = it["Category (Specific)"] || "Other";
         const share = ((it["Item Total"] || 0) / sum) * amt;
