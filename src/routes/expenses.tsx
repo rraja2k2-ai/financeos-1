@@ -19,7 +19,8 @@ export const Route = createFileRoute("/expenses")({
 
 function ExpensesPage() {
   const { data } = useSuspenseQuery(financeQueryOptions);
-  
+  const { period, setPeriod, range } = usePeriod();
+
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("All");
   const [selected, setSelected] = useState<HeaderRow | null>(null);
@@ -28,12 +29,17 @@ function ExpensesPage() {
   const [openCat, setOpenCat] = useState<string | null>(null);
 
   const bucketOf = (h: HeaderRow) => (h.Currency === "INR" ? "INR" : "SGD");
+  const inRange = (h: { Date: string }) => {
+    const d = parseDate(h.Date);
+    return d >= range.start && d <= range.end;
+  };
 
-  // Per-currency stats for the tab cards (respect search + category filters,
-  // but NOT the active bucket — tabs always show their own totals).
+  // Per-currency stats for the tab cards (respect search + category filters
+  // and the global analytics period).
   const baseFiltered = useMemo(() => {
     return data.headers
       .filter(isExpense)
+      .filter(inRange)
       .filter((h) => (cat === "All" ? true : h["Category (Primary)"] === cat))
       .filter((h) => {
         if (!q) return true;
@@ -44,7 +50,9 @@ function ExpensesPage() {
           (h.Comments || "").toLowerCase().includes(s)
         );
       });
-  }, [data.headers, q, cat]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.headers, q, cat, period]);
+
 
   const stats = useMemo(() => {
     const sgdList = baseFiltered.filter((h) => bucketOf(h) === "SGD");
