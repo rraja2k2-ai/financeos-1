@@ -52,18 +52,60 @@ export const fmtSGD = (n: number) =>
 export const fmtNum = (n: number) =>
   new Intl.NumberFormat("en-SG", { maximumFractionDigits: 0 }).format(n || 0);
 
-// Parse "DD/MM/YYYY" or ISO date string
+/**
+ * Parse a date string from the workbook / finance API.
+ *
+ * The source of truth is DD/MM/YYYY (Singapore locale). We must NEVER rely on
+ * `new Date(str)` for these values because JS engines interpret "01/06/2026"
+ * as MM/DD/YYYY (January 6) in many locales — which is the bug we are fixing.
+ *
+ * Supported inputs (in priority order):
+ *   1. DD/MM/YYYY or DD-MM-YYYY  → primary workbook format
+ *   2. YYYY-MM-DD (ISO date)     → API fallback
+ *   3. Full ISO datetime         → safe to delegate to native Date
+ *
+ * All branches construct the Date in UTC so month grouping is stable across
+ * timezones (a Jun 1 in SGT must not bucket as May in UTC, etc.).
+ */
 export function parseDate(d: string): Date {
   if (!d) return new Date(NaN);
-  if (d.includes("/")) {
-    const [dd, mm, yyyy] = d.split("/").map(Number);
-    return new Date(yyyy, (mm || 1) - 1, dd || 1);
+  const s = d.trim();
+
+  // DD/MM/YYYY or DD-MM-YYYY (also accepts 2-digit year)
+  const dmy = s.match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})$/);
+  if (dmy) {
+    const day = Number(dmy[1]);
+    const month = Number(dmy[2]);
+    let year = Number(dmy[3]);
+    if (year < 100) year += 2000;
+    if (month < 1 || month > 12 || day < 1 || day > 31) return new Date(NaN);
+    const dt = new Date(Date.UTC(year, month - 1, day));
+    // Reject impossible dates (e.g. 31/02 silently rolling forward).
+    if (dt.getUTCDate() !== day || dt.getUTCMonth() !== month - 1) return new Date(NaN);
+    return dt;
   }
-  return new Date(d);
+
+  // ISO date YYYY-MM-DD
+  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) {
+    const year = Number(iso[1]);
+    const month = Number(iso[2]);
+    const day = Number(iso[3]);
+    const dt = new Date(Date.UTC(year, month - 1, day));
+    if (dt.getUTCDate() !== day || dt.getUTCMonth() !== month - 1) return new Date(NaN);
+    return dt;
+  }
+
+  // Full ISO datetime (contains 'T') — safe for native parser.
+  if (s.includes("T")) return new Date(s);
+
+  return new Date(NaN);
 }
 
 export function monthKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  if (Number.isNaN(d.getTime())) return "";
+  // Use UTC so month bucketing matches parseDate (which constructs in UTC).
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 export function isExpense(h: HeaderRow) {
@@ -99,8 +141,11 @@ export function groupByMonth(headers: HeaderRow[]) {
 }
 
 export function currentMonthKey() {
-  return monthKey(new Date());
+  // Use the user's local calendar month, formatted to match monthKey() output.
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
+
 
 const MONTH_NAMES = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
