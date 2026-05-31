@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Search, ArrowLeftRight, CreditCard, HandCoins, ChevronDown } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { financeQueryOptions } from "@/lib/finance-query";
-import { fmtSGD, parseDate, monthKey, isExpense } from "@/lib/finance-utils";
+import { fmtSGD, parseDate, monthKey, isExpense, buildCategoryTaxonomy, resolveCategory } from "@/lib/finance-utils";
 import { PERIODS, usePeriod } from "@/lib/period";
 
 import { TransactionDrawer } from "@/components/TransactionDrawer";
