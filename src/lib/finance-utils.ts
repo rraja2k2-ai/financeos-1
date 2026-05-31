@@ -1,4 +1,46 @@
-import type { HeaderRow } from "./api/finance.functions";
+import type { BudgetEntry, HeaderRow } from "./api/finance.functions";
+
+export const MISC_CATEGORY = "Miscellaneous";
+
+/**
+ * Build the set of valid primary and specific categories from the budget map.
+ * The budget sheet is the source of truth for the category taxonomy.
+ */
+export function buildCategoryTaxonomy(budgetMap: Record<string, BudgetEntry>) {
+  const validSpecifics = new Set<string>();
+  const validPrimaries = new Set<string>();
+  for (const [specific, entry] of Object.entries(budgetMap)) {
+    if (specific) validSpecifics.add(specific);
+    if (entry.primary) validPrimaries.add(entry.primary);
+  }
+  // Miscellaneous is always considered a valid fallback bucket.
+  validPrimaries.add(MISC_CATEGORY);
+  validSpecifics.add(MISC_CATEGORY);
+  return { validPrimaries, validSpecifics };
+}
+
+/**
+ * Resolve a (primary, specific) pair against the budget taxonomy:
+ *  - Specific exists → keep both unchanged.
+ *  - Only primary exists → specific becomes "Miscellaneous".
+ *  - Neither exists → both become "Miscellaneous".
+ * Ensures no expense disappears from analytics due to category mismatches.
+ */
+export function resolveCategory(
+  primary: string | undefined,
+  specific: string | undefined,
+  taxonomy: { validPrimaries: Set<string>; validSpecifics: Set<string> },
+): { primary: string; specific: string } {
+  const p = (primary || "").trim();
+  const s = (specific || "").trim();
+  if (s && taxonomy.validSpecifics.has(s)) {
+    return { primary: p || MISC_CATEGORY, specific: s };
+  }
+  if (p && taxonomy.validPrimaries.has(p)) {
+    return { primary: p, specific: MISC_CATEGORY };
+  }
+  return { primary: MISC_CATEGORY, specific: MISC_CATEGORY };
+}
 
 export const fmtSGD = (n: number) =>
   new Intl.NumberFormat("en-SG", {

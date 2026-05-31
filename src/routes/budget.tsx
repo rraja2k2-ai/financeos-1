@@ -3,7 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { AppShell } from "@/components/AppShell";
 import { financeQueryOptions } from "@/lib/finance-query";
-import { fmtSGD, parseDate, monthKey, isExpense, budgetActiveInMonth } from "@/lib/finance-utils";
+import { fmtSGD, parseDate, monthKey, isExpense, budgetActiveInMonth, buildCategoryTaxonomy, resolveCategory } from "@/lib/finance-utils";
 import { usePrivacy } from "@/lib/privacy";
 import { PERIODS, usePeriod, monthsInRange } from "@/lib/period";
 
@@ -24,32 +24,37 @@ function BudgetPage() {
     [monthsCovered],
   );
 
+  const taxonomy = useMemo(() => buildCategoryTaxonomy(data.budgetMap), [data.budgetMap]);
+
   // Spend by specific category across the active period (item-level SGD share).
   const spentBySpecific = useMemo(() => {
     const map = new Map<string, number>();
+    const add = (primary: string, specific: string, amt: number) => {
+      const { specific: resolved } = resolveCategory(primary, specific, taxonomy);
+      map.set(resolved, (map.get(resolved) || 0) + amt);
+    };
     for (const h of data.headers) {
       if (!isExpense(h)) continue;
       if (!monthKeysCovered.has(monthKey(parseDate(h.Date)))) continue;
       const receipt = h["Receipt ID (Key)"];
       const sgdTotal = h["SGD Total Amount"] || 0;
+      const primary = h["Category (Primary)"] || "";
       const items = data.itemsByReceipt[receipt];
       const itemSum = items ? items.reduce((s, i) => s + (i["Item Total"] || 0), 0) : 0;
       if (items && items.length > 0 && itemSum > 0) {
         for (const it of items) {
           const share = ((it["Item Total"] || 0) / itemSum) * sgdTotal;
-          const k = it["Category (Specific)"] || "Other";
-          map.set(k, (map.get(k) || 0) + share);
+          add(primary, it["Category (Specific)"] || "", share);
         }
       } else {
         // Fallback to receipt-level categorization when no items OR every item total is zero,
         // so the full SGD amount stays attributed and Dashboard Spend = Σ Category Spend.
         const specificFromItem = items && items.length > 0 ? items[0]["Category (Specific)"] : "";
-        const k = specificFromItem || h["Category (Primary)"] || "Other";
-        map.set(k, (map.get(k) || 0) + sgdTotal);
+        add(primary, specificFromItem || "", sgdTotal);
       }
     }
     return map;
-  }, [data, monthKeysCovered]);
+  }, [data, monthKeysCovered, taxonomy]);
 
   // For each budget entry, sum its budgeted amount across every month in the
   // active period where the entry is active per frequency/pattern logic.
