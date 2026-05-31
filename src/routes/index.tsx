@@ -308,8 +308,13 @@ function fmtAxisSGD(v: number) {
   return `S$${new Intl.NumberFormat("en-SG", { maximumFractionDigits: 0 }).format(v || 0)}`;
 }
 
+const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
 function SpendTrend({ data }: { data: [string, number][] }) {
-  const chartData = data.map(([k, v]) => ({ month: k.slice(5), full: k, value: Math.round(v) }));
+  const chartData = data.map(([k, v]) => {
+    const monthIdx = parseInt(k.slice(5), 10) - 1;
+    return { month: MONTH_SHORT[monthIdx] ?? k.slice(5), full: k, value: Math.round(v) };
+  });
   if (chartData.length === 0) {
     return (
       <div className="mt-4 h-44 grid place-items-center text-sm text-muted-foreground">
