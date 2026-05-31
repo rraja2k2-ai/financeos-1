@@ -141,8 +141,11 @@ export function groupByMonth(headers: HeaderRow[]) {
 }
 
 export function currentMonthKey() {
-  return monthKey(new Date());
+  // Use the user's local calendar month, formatted to match monthKey() output.
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
+
 
 const MONTH_NAMES = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
