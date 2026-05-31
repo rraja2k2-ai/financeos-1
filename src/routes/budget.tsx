@@ -3,7 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { AppShell } from "@/components/AppShell";
 import { financeQueryOptions } from "@/lib/finance-query";
-import { fmtSGD, parseDate, monthKey, isExpense, budgetActiveInMonth } from "@/lib/finance-utils";
+import { fmtSGD, parseDate, monthKey, isExpense, budgetActiveInMonth, buildCategoryTaxonomy, resolveCategory } from "@/lib/finance-utils";
 import { usePrivacy } from "@/lib/privacy";
 import { PERIODS, usePeriod, monthsInRange } from "@/lib/period";
 
