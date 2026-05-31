@@ -135,43 +135,48 @@ function ExpensesPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.headers, period]);
+  const taxonomy = useMemo(() => buildCategoryTaxonomy(data.budgetMap), [data.budgetMap]);
+
   const analytics = useMemo(() => {
     const periodExpenses = data.headers.filter(
       (h) => isExpense(h) && bucketOf(h) === bucket && inRange(h),
     );
     const primary = new Map<string, { total: number; receipts: HeaderRow[] }>();
     for (const h of periodExpenses) {
-      const k = h["Category (Primary)"] || "Other";
-      const entry = primary.get(k) || { total: 0, receipts: [] };
+      const { primary: resolved } = resolveCategory(h["Category (Primary)"], "", taxonomy);
+      const entry = primary.get(resolved) || { total: 0, receipts: [] };
       entry.total += amountOf(h);
       entry.receipts.push(h);
-      primary.set(k, entry);
+      primary.set(resolved, entry);
     }
     const rows = Array.from(primary.entries())
       .map(([name, v]) => ({ name, total: v.total, receipts: v.receipts }))
       .sort((a, b) => b.total - a.total);
     return rows;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.headers, bucket, period]);
+  }, [data.headers, bucket, period, taxonomy]);
 
 
   const subBreakdown = (receipts: HeaderRow[]) => {
     const map = new Map<string, number>();
+    const add = (primary: string, specific: string, amt: number) => {
+      const { specific: resolved } = resolveCategory(primary, specific, taxonomy);
+      map.set(resolved, (map.get(resolved) || 0) + amt);
+    };
     for (const h of receipts) {
       const items = data.itemsByReceipt?.[h["Receipt ID (Key)"]] ?? [];
       const amt = amountOf(h);
+      const primary = h["Category (Primary)"] || "";
       const sum = items.reduce((s, i) => s + (i["Item Total"] || 0), 0);
       if (items.length === 0 || sum <= 0) {
         // Fallback to receipt-level categorization when no items OR every item total is zero.
         const specificFromItem = items.length > 0 ? items[0]["Category (Specific)"] : "";
-        const k = specificFromItem || h["Category (Primary)"] || "Other";
-        map.set(k, (map.get(k) || 0) + amt);
+        add(primary, specificFromItem || "", amt);
         continue;
       }
       for (const it of items) {
-        const k = it["Category (Specific)"] || "Other";
         const share = ((it["Item Total"] || 0) / sum) * amt;
-        map.set(k, (map.get(k) || 0) + share);
+        add(primary, it["Category (Specific)"] || "", share);
       }
     }
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
