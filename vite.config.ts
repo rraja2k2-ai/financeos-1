@@ -13,9 +13,9 @@ export default defineConfig({
     server: { entry: "server" },
   },
   // Force Nitro on with the Vercel preset so deployments on Vercel get a
-  
- // nitro: process.env.VERCEL
-  //  ? { preset: "vercel" }
-  //  : undefined,
-nitro: { preset: "cloudflare-pages" }
+  // server bundle. Without this, Nitro only runs inside Lovable's sandbox
+  // and Vercel deployments ship a client-only build (every route 404s).
+  nitro: process.env.VERCEL
+    ? { preset: "vercel" }
+    : undefined,
 });
