@@ -18,5 +18,5 @@ export default defineConfig({
  // nitro: process.env.VERCEL
   //  ? { preset: "vercel" }
   //  : undefined,
-  nitro: { preset: "vercel" }
+nitro: { preset: "cloudflare-pages" }
 });
