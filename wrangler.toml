@@ -1,0 +1,7 @@
+name = "financeos-1"
+compatibility_date = "2026-06-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "dist"
+
+[vars]
+FINANCE_API_URL = "https://script.google.com/macros/s/AKfycbxrln4H5uxwkQ_6vYgfFtT7d8C2tZqaM_El2oWjh92GfY2ekbaE4Wo6OQkG6OrVs35blA/exec"
