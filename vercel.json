@@ -3,11 +3,6 @@
   "outputDirectory": "dist",
   "framework": null,
   "regions": ["sin1"],
-  "functions": {
-    "dist/server/index.mjs": {
-      "runtime": "nodejs24.x"
-    }
-  },
   "routes": [
     {
       "src": "/assets/(.*)",
