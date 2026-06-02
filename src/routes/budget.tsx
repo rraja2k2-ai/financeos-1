@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { AppShell } from "@/components/AppShell";
 import { financeQueryOptions } from "@/lib/finance-query";
 import { fmtSGD, parseDate, monthKey, isExpense, budgetActiveInMonth, buildCategoryTaxonomy, resolveCategory } from "@/lib/finance-utils";
-import { usePrivacy } from "@/lib/privacy";
+
 import { PERIODS, usePeriod, monthsInRange } from "@/lib/period";
 
 export const Route = createFileRoute("/budget")({
@@ -15,7 +15,6 @@ export const Route = createFileRoute("/budget")({
 
 function BudgetPage() {
   const { data } = useSuspenseQuery(financeQueryOptions);
-  const { mask } = usePrivacy();
   const { period, setPeriod, range } = usePeriod();
 
   const monthsCovered = useMemo(() => monthsInRange(range), [range]);
@@ -88,7 +87,7 @@ function BudgetPage() {
   const pct = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
   return (
-    <AppShell title="Budget" subtitle={`${range.label} · ${mask(fmtSGD(totalSpent))} of ${mask(fmtSGD(totalBudget))}`}>
+    <AppShell title="Budget" subtitle={`${range.label} · ${fmtSGD(totalSpent)} of ${fmtSGD(totalBudget)}`}>
       {/* Period selector */}
       <div className="mb-4 flex flex-wrap gap-2">
         {PERIODS.map((p) => {
@@ -122,8 +121,8 @@ function BudgetPage() {
           />
         </div>
         <div className="mt-3 flex justify-between text-sm">
-          <span className="opacity-90">{mask(fmtSGD(totalSpent))} spent</span>
-          <span className="opacity-90">{mask(fmtSGD(Math.max(totalBudget - totalSpent, 0)))} left</span>
+          <span className="opacity-90">{fmtSGD(totalSpent)} spent</span>
+          <span className="opacity-90">{fmtSGD(Math.max(totalBudget - totalSpent, 0))} left</span>
         </div>
       </div>
 
@@ -136,7 +135,7 @@ function BudgetPage() {
               <div className="flex items-baseline justify-between mb-2">
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{primary}</h2>
                 <span className="text-xs text-muted-foreground tabular-nums">
-                  {mask(fmtSGD(subSpent))} / {mask(fmtSGD(subBudget))}
+                  {fmtSGD(subSpent)} / {fmtSGD(subBudget)}
                 </span>
               </div>
               <div className="rounded-xl border border-border bg-card divide-y divide-border shadow-[var(--shadow-card)]">
@@ -155,7 +154,7 @@ function BudgetPage() {
                           )}
                         </span>
                         <span className={`tabular-nums shrink-0 ${over ? "text-destructive" : "text-foreground"}`}>
-                          {mask(fmtSGD(r.spent))} / {mask(fmtSGD(r.budget))}
+                          {fmtSGD(r.spent)} / {fmtSGD(r.budget)}
                         </span>
                       </div>
                       <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
@@ -171,7 +170,7 @@ function BudgetPage() {
                         />
                       </div>
                       <div className="mt-1 text-[11px] text-muted-foreground">
-                        {p.toFixed(0)}% used · {mask(fmtSGD(Math.max(r.budget - r.spent, 0)))} left
+                        {p.toFixed(0)}% used · {fmtSGD(Math.max(r.budget - r.spent, 0))} left
                       </div>
                     </div>
                   );

@@ -28,6 +28,7 @@ export const Route = createFileRoute("/accounts")({
 
 const TRACKED_CURRENCIES = ["SGD", "USD", "INR", "MYR", "THB", "IDR"] as const;
 const ALLOCATION_GROUPS = ["Savings", "Investment", "LoanToOthers", "Debt"] as const;
+const GROUP_ORDER = ["Savings", "Credit Cards", "LoanToOthers", "Investment"] as const;
 
 const GROUP_COLORS: Record<string, string> = {
   Savings: "var(--primary)",
@@ -82,11 +83,8 @@ function AccountsPage() {
   const [openAccount, setOpenAccount] = useState<string | null>(null);
 
   // Currency-bucket split (INR broken out; everything else under SGD).
-  const SPLIT_CURRENCIES = ["SGD", "INR"] as const;
-  type Bucket = (typeof SPLIT_CURRENCIES)[number];
-  const bucketOf = (a: AccountRow): Bucket => (a.currency === "INR" ? "INR" : "SGD");
 
-  const fmtNative = fmtNativeBalance;
+  
 
   // ---- Portfolio aggregates ----
   const portfolio = useMemo(() => {
@@ -301,38 +299,171 @@ function AccountsPage() {
         </div>
       </section>
 
-      {groups.map((g) => {
-        const inGroup = accounts.filter((a) => a.group === g);
-        return SPLIT_CURRENCIES.map((bucket) => {
-          const list = inGroup
-            .filter((a) => bucketOf(a) === bucket)
+      {/* SGD & INR sections with fixed group order */}
+      {(["SGD", "INR"] as const).map((currency) => {
+        const inCurrency = accounts.filter((a) => a.currency === currency);
+        if (inCurrency.length === 0) return null;
+        return (
+          <section key={currency} className="mt-6">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              {currency}
+            </h2>
+            <div className="space-y-4">
+              {GROUP_ORDER.map((g) => {
+                const list = inCurrency
+                  .filter((a) => a.group === g)
+                  .sort((a, b) => Math.abs(b.weightSGD) - Math.abs(a.weightSGD));
+                if (list.length === 0) return null;
+
+                const sgdTotal = list.reduce((s, a) => s + (a.weightSGD || 0), 0);
+                const nativeTotal = list.every((a) => a.currency === currency)
+                  ? list.reduce((s, a) => s + (a.balance || 0), 0)
+                  : null;
+
+                return (
+                  <div key={g}>
+                    <div className="flex items-baseline justify-between mb-2 gap-3">
+                      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                        {groupLabel(g)}
+                      </h3>
+                      <div className="text-right shrink-0">
+                        {nativeTotal !== null && currency !== "SGD" ? (
+                          <>
+                            <div className="text-sm font-medium tabular-nums">
+                              {mask(fmtNativeBalance(currency, nativeTotal))}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground tabular-nums">
+                              ≈ {mask(fmtSGD(sgdTotal))}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-sm font-medium tabular-nums">{mask(fmtSGD(sgdTotal))}</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-border bg-card divide-y divide-border shadow-[var(--shadow-card)]">
+                      {list.map((a) => {
+                        const open = openAccount === a.name;
+                        const recent = open ? recentForAccount(a.name) : [];
+                        return (
+                          <div key={a.name}>
+                            <button
+                              type="button"
+                              onClick={() => setOpenAccount(open ? null : a.name)}
+                              className="w-full text-left p-4 flex items-center justify-between gap-4 hover:bg-accent/30 transition-colors cursor-pointer"
+                            >
+                              <div className="min-w-0 flex items-center gap-2">
+                                <ChevronDown
+                                  className={`size-4 text-muted-foreground transition-transform shrink-0 ${
+                                    open ? "rotate-0" : "-rotate-90"
+                                  }`}
+                                />
+                                <div className="min-w-0">
+                                  <div className="font-medium truncate">{a.name}</div>
+                                  {a.currency !== "SGD" && a.rate ? (
+                                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground tabular-nums">
+                                      Exchange Rate: {a.rate}
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <div className="font-semibold tabular-nums">
+                                  {mask(
+                                    a.currency === "SGD"
+                                      ? fmtSGD(a.weightSGD)
+                                      : fmtNativeBalance(a.currency, a.balance),
+                                  )}
+                                </div>
+                                {a.currency !== "SGD" && (
+                                  <div className="text-[10px] text-muted-foreground tabular-nums">
+                                    ≈ {mask(fmtSGD(a.weightSGD))}
+                                  </div>
+                                )}
+                              </div>
+                            </button>
+                            {open && (
+                              <div className="px-4 pb-4">
+                                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+                                  Recent activity · latest {recent.length}
+                                </div>
+                                {recent.length === 0 ? (
+                                  <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground text-center">
+                                    No transactions linked to this account.
+                                  </div>
+                                ) : (
+                                  <ul className="rounded-lg border border-border/60 divide-y divide-border/60 bg-muted/10">
+                                    {recent.map((t) => (
+                                      <li
+                                        key={t["Receipt ID (Key)"]}
+                                        className="px-3 py-2 flex items-center justify-between gap-3 text-xs"
+                                      >
+                                        <div className="min-w-0">
+                                          <div className="font-medium truncate">
+                                            {t.Merchant || t["Target Account"] || "—"}
+                                          </div>
+                                          <div className="text-[10px] text-muted-foreground truncate">
+                                            {t.Date} · {t["Transaction Type"]}
+                                          </div>
+                                        </div>
+                                        <div className="text-right shrink-0">
+                                          <div className="font-semibold tabular-nums">
+                                            {mask(
+                                              `${t.Currency} ${new Intl.NumberFormat("en-SG", {
+                                                maximumFractionDigits: 2,
+                                              }).format(t["Original Amount"] || 0)}`,
+                                            )}
+                                          </div>
+                                          {t.Currency !== "SGD" && (
+                                            <div className="text-[10px] text-muted-foreground">
+                                              ≈ {mask(fmtSGD(t["SGD Total Amount"]))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
+
+      {/* Other currencies */}
+      {Array.from(new Set(accounts.map((a) => a.currency)))
+        .filter((c) => c !== "SGD" && c !== "INR")
+        .sort()
+        .map((currency) => {
+          const list = accounts
+            .filter((a) => a.currency === currency)
             .sort((a, b) => Math.abs(b.weightSGD) - Math.abs(a.weightSGD));
           if (list.length === 0) return null;
 
           const sgdTotal = list.reduce((s, a) => s + (a.weightSGD || 0), 0);
-          const nativeTotal = list.every((a) => a.currency === bucket)
-            ? list.reduce((s, a) => s + (a.balance || 0), 0)
-            : null;
+          const nativeTotal = list.reduce((s, a) => s + (a.balance || 0), 0);
 
           return (
-            <section key={`${g}-${bucket}`} className="mt-6">
+            <section key={currency} className="mt-6">
               <div className="flex items-baseline justify-between mb-2 gap-3">
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground truncate">
-                  {groupLabel(g)} — {bucket}
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  {currency}
                 </h2>
                 <div className="text-right shrink-0">
-                  {nativeTotal !== null && bucket !== "SGD" ? (
-                    <>
-                      <div className="text-sm font-medium tabular-nums">
-                        {mask(fmtNative(bucket, nativeTotal))}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground tabular-nums">
-                        ≈ {mask(fmtSGD(sgdTotal))}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-sm font-medium tabular-nums">{mask(fmtSGD(sgdTotal))}</div>
-                  )}
+                  <div className="text-sm font-medium tabular-nums">
+                    {mask(fmtNativeBalance(currency, nativeTotal))}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground tabular-nums">
+                    ≈ {mask(fmtSGD(sgdTotal))}
+                  </div>
                 </div>
               </div>
               <div className="rounded-xl border border-border bg-card divide-y divide-border shadow-[var(--shadow-card)]">
@@ -366,7 +497,7 @@ function AccountsPage() {
                             {mask(
                               a.currency === "SGD"
                                 ? fmtSGD(a.weightSGD)
-                                : fmtNative(a.currency, a.balance),
+                                : fmtNativeBalance(a.currency, a.balance),
                             )}
                           </div>
                           {a.currency !== "SGD" && (
@@ -426,8 +557,7 @@ function AccountsPage() {
               </div>
             </section>
           );
-        });
-      })}
+        })}
     </AppShell>
   );
 }
