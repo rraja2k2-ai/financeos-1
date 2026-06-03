@@ -50,6 +50,7 @@ const CURRENCY_COLORS = [
 // friendlier name in the UI.
 const GROUP_LABELS: Record<string, string> = {
   LoanToOthers: "Receivables",
+  Debt: "Credit Cards",
 };
 const groupLabel = (g: string) => GROUP_LABELS[g] ?? g;
 
