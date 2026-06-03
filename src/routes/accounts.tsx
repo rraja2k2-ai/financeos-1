@@ -28,7 +28,7 @@ export const Route = createFileRoute("/accounts")({
 
 const TRACKED_CURRENCIES = ["SGD", "USD", "INR", "MYR", "THB", "IDR"] as const;
 const ALLOCATION_GROUPS = ["Savings", "Investment", "LoanToOthers", "Debt"] as const;
-const GROUP_ORDER = ["Savings", "Credit Cards", "LoanToOthers", "Investment"] as const;
+const GROUP_ORDER = ["Savings", "Debt", "LoanToOthers", "Investment"] as const;
 
 const GROUP_COLORS: Record<string, string> = {
   Savings: "var(--primary)",
