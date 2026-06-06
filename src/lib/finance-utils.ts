@@ -186,3 +186,10 @@ export function budgetActiveInMonth(
 
   return true;
 }
+
+export const GENERIC_PROJECT = "Generic";
+
+export function projectOf(h: { Project?: string; Source?: string }): string {
+  const v = (h.Project ?? h.Source ?? "").toString().trim();
+  return v.length === 0 ? GENERIC_PROJECT : v;
+}

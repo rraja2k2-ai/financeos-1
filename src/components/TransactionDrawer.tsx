@@ -5,7 +5,7 @@ import {
   DrawerTitle,
   DrawerDescription,
 } from "@/components/ui/drawer";
-import { fmtSGD } from "@/lib/finance-utils";
+import { fmtSGD, projectOf } from "@/lib/finance-utils";
 import type { HeaderRow, ItemRow } from "@/lib/api/finance.functions";
 
 interface Props {
@@ -42,6 +42,14 @@ export function TransactionDrawer({ transaction, itemsByReceipt, onClose }: Prop
                   </dt>
                   <dd className="font-medium mt-0.5">
                     {transaction["Category (Primary)"] || "—"}
+                  </dd>
+                </div>
+                <div className="col-span-2">
+                  <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    Project
+                  </dt>
+                  <dd className="font-medium mt-0.5">
+                    {projectOf(transaction)}
                   </dd>
                 </div>
                 <div className="col-span-2 border-t border-border pt-3 flex items-baseline justify-between">

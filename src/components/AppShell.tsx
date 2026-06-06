@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Wallet, Receipt, PiggyBank, Sparkles, Eye, EyeOff } from "lucide-react";
+import { LayoutDashboard, Wallet, Receipt, PiggyBank, Sparkles, FolderKanban, Eye, EyeOff } from "lucide-react";
 import type { ReactNode } from "react";
 import { usePrivacy } from "@/lib/privacy";
 
@@ -8,6 +8,7 @@ const NAV = [
   { to: "/accounts", label: "Accounts", icon: Wallet },
   { to: "/expenses", label: "Expenses", icon: Receipt },
   { to: "/budget", label: "Budget", icon: PiggyBank },
+  { to: "/projects", label: "Projects", icon: FolderKanban },
   { to: "/insights", label: "Insights", icon: Sparkles },
 ] as const;
 
@@ -72,7 +73,7 @@ export function AppShell({ children, title, subtitle }: { children: ReactNode; t
 
       {/* Bottom nav (mobile) */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border bg-card/95 backdrop-blur">
-        <div className="grid grid-cols-5">
+        <div className="grid grid-cols-6">
           {NAV.map((n) => {
             const active = path === n.to;
             return (

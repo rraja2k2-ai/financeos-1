@@ -23,7 +23,9 @@ export interface HeaderRow {
   "Exchange Rate": number;
   "SGD Total Amount": number;
   Comments: string;
-  Source: string;
+  Project?: string;
+  /** @deprecated legacy field, use Project */
+  Source?: string;
 }
 
 export interface ItemRow {
