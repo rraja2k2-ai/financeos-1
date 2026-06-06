@@ -73,7 +73,7 @@ export function AppShell({ children, title, subtitle }: { children: ReactNode; t
 
       {/* Bottom nav (mobile) */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border bg-card/95 backdrop-blur">
-        <div className="grid grid-cols-5">
+        <div className="grid grid-cols-6">
           {NAV.map((n) => {
             const active = path === n.to;
             return (
