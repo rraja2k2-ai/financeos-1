@@ -5,7 +5,7 @@ import {
   DrawerTitle,
   DrawerDescription,
 } from "@/components/ui/drawer";
-import { fmtSGD } from "@/lib/finance-utils";
+import { fmtSGD, projectOf } from "@/lib/finance-utils";
 import type { HeaderRow, ItemRow } from "@/lib/api/finance.functions";
 
 interface Props {
